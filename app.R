@@ -50,8 +50,22 @@ ui <- fluidPage(
         direction = c("bottom", "top", "right", "left"),
         shinydashboard = FALSE
     ),tags$script(src="myscript.js"),
-    tags$head(includeScript("www/google-analytics.js"),tags$style("figure{border-width:10px; border-style:solid;border-color:black;border-radius:25px}","h4{color:white;}","h2{color:white;}","@media (hover:none) {.sbs-toggle-button.active:hover{background-color:black;color:white;}}","@media (hover:none) {.sbs-toggle-button:hover{background-color:white;color:black}}",".btn.active{background-color:black;color:white;}",".btn.active:hover{background-color:black;color:white;}",".btn.active:focus{background-color:black;color:white;}",".panel-heading{color:white;background-color:Black;}",".btn{margin-bottom:5px;margin-left:5px;margin-right:5px;font-size:small;width:100%;text-align:center;}"),
-    ),
+    tags$head(
+        includeHTML("www/gtag.html"),
+        includeScript("www/google-analytics.js"),
+        tags$style(
+            "figure{border-width:10px; border-style:solid;border-color:black;border-radius:25px}",
+            "h4{color:white;}",
+            "h2{color:white;}",
+            "@media (hover:none) {.sbs-toggle-button.active:hover{background-color:black;color:white;}}",
+            "@media (hover:none) {.sbs-toggle-button:hover{background-color:white;color:black}}",
+            ".btn.active{background-color:black;color:white;}",
+            ".btn.active:hover{background-color:black;color:white;}",
+            ".btn.active:focus{background-color:black;color:white;}",
+            ".panel-heading{color:white;background-color:Black;}",
+            ".btn{margin-bottom:5px;margin-left:5px;margin-right:5px;font-size:small;width:100%;text-align:center;}"
+        ),
+    ), 
     tags$h1(align="center","Debridement and Implant Retention (DAIR) Success Calculator"),
     
     sidebarLayout(sidebarPanel(width=4,tags$style(".well {background-color:Black;}"),
