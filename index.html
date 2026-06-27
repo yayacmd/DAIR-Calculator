@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DAIR Success Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --ink:#16202B; --muted:#5B6B7C; --surface:#FAFBFC; --card:#FFFFFF; --line:#E3E8EE;
+    --accent:#1B4FA0; --accent-ink:#0E2F63; --accent-wash:#EEF3FB;
+    --verified:#1A7F4B; --danger:#B3261E; --warn:#B7791F;
+    --green:var(--verified); --amber:var(--warn); --red:var(--danger);
+    --radius:10px;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    --serif:'Source Serif 4',Georgia,serif;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --shadow:0 1px 2px rgba(22,32,43,.04);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-family:var(--sans);background:var(--surface);color:var(--ink);line-height:1.55}
+
+  /* header wordmark (mirrors ICM Assistant) */
+  header.appbar{max-width:1180px;margin:0 auto;padding:1.1rem 16px .3rem;
+    display:flex;align-items:center;justify-content:space-between;gap:1rem}
+  .wordmark{display:flex;align-items:center;gap:.7rem}
+  .wordmark img{height:40px;width:auto}
+  .wordmark .titles{display:flex;flex-direction:column;line-height:1.2}
+  .wordmark .name{font-weight:600;font-size:1.05rem;letter-spacing:-.01em}
+  .wordmark .tag{font-size:.74rem;color:var(--muted)}
+  .corpus-note{font-size:.74rem;color:var(--muted);text-align:end;max-inline-size:18rem}
+  @media (max-width:640px){ .corpus-note{display:none} }
+
+  .disclaimer{max-width:1148px;margin:.5rem auto 1rem;padding:.6rem .85rem;
+    font-size:.78rem;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-inline-start:3px solid var(--warn);border-radius:8px}
+  @media (max-width:900px){ .disclaimer{margin-inline:16px} }
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px 64px;
+        display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+  @media (max-width:900px){ .wrap{grid-template-columns:1fr} .results{position:static !important} }
+
+  /* ---- results card ---- */
+  .results{position:sticky;top:16px;background:var(--card);color:var(--ink);
+           border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 20px;
+           order:2;box-shadow:var(--shadow)}
+  @media (max-width:900px){ .results{order:0} }
+  .results h2{font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+              color:var(--muted);text-align:center;margin:0 0 8px}
+  .gaugewrap{display:flex;justify-content:center}
+  .gnum{font-size:38px;font-weight:700;text-anchor:middle;fill:var(--ink);font-family:var(--sans)}
+  .glabel{fill:var(--muted);font-size:12px;text-anchor:middle}
+  .verdict{text-align:center;font-weight:600;margin:4px 0 2px;font-size:16px;font-family:var(--serif)}
+  .me-toggle{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .me-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .me-row span{font-size:.86rem;color:var(--ink)}
+  .chartbox{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .chartbox h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;
+               color:var(--muted);margin:0 0 8px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .chartbox h3::after{content:'';flex:1;height:1px;background:var(--line)}
+  .shap-tag{font-size:9px;letter-spacing:.08em;background:var(--accent);color:#fff;
+            padding:1px 6px;border-radius:6px;font-weight:600}
+  .chartbox p.note{font-size:10.5px;color:var(--muted);font-style:italic;margin:8px 2px 0}
+  .refstrip{display:flex;align-items:center;justify-content:space-between;gap:8px;
+            font-size:11px;color:var(--muted);margin:2px 0 10px}
+  .refstrip b{color:var(--ink);font-size:15px;font-weight:600}
+  .refstrip .arrow{flex:1;height:2px;background:linear-gradient(90deg,var(--line),#aeb9c4)}
+  .shap-legend{display:flex;gap:14px;font-size:10px;color:var(--muted);margin-top:8px}
+  .shap-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
+  .sh-row{display:grid;grid-template-columns:86px 1fr 44px;align-items:center;gap:6px;margin:4px 0}
+  .sh-lab{font-size:10.5px;color:var(--ink);text-align:right;line-height:1.12}
+  .sh-track{position:relative;height:15px;background:var(--accent-wash);border-radius:4px}
+  .sh-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#c2cbd4}
+  .sh-fill{position:absolute;top:2px;bottom:2px;border-radius:3px;transition:width .18s ease,left .18s ease}
+  .sh-val{font-size:10px;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+
+  /* ---- input column ---- */
+  .panels{display:flex;flex-direction:column;gap:12px;order:1}
+  .acc{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+  .acc>summary{list-style:none;cursor:pointer;padding:.8rem 1rem;background:var(--card);
+    color:var(--ink);font-weight:600;font-size:.92rem;display:flex;align-items:center;
+    justify-content:space-between;border-bottom:1px solid transparent}
+  .acc>summary::-webkit-details-marker{display:none}
+  .acc>summary:hover{background:var(--accent-wash)}
+  .acc[open]>summary{border-bottom-color:var(--line)}
+  .acc>summary .chev{transition:transform .2s;color:var(--muted);font-size:.7rem}
+  .acc[open]>summary .chev{transform:rotate(90deg)}
+  .acc .body{padding:1rem}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media (max-width:560px){ .grid2,.grid3{grid-template-columns:1fr} }
+  label.fld{display:block;font-size:.72rem;color:var(--muted);margin:0 0 5px;font-weight:600}
+  input[type=number]{width:100%;padding:9px 10px;border:1px solid var(--line);
+    border-radius:8px;font:inherit;font-size:15px;background:var(--card);color:var(--ink)}
+  input[type=number]:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+  .seg{display:inline-flex;flex-wrap:wrap;gap:6px}
+  .seg button{border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:8px 12px;border-radius:8px;font:inherit;font-size:13px;cursor:pointer;font-weight:500;min-width:60px}
+  .seg button:hover{background:var(--accent-wash);border-color:var(--accent)}
+  .seg button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .seg button[aria-pressed=true]:hover{background:var(--accent-ink)}
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width:560px){ .toggles{grid-template-columns:1fr} }
+  .tog{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 11px;
+    border-radius:8px;font:inherit;font-size:12.5px;cursor:pointer;text-align:left;font-weight:500}
+  .tog:hover{background:var(--accent-wash);border-color:var(--accent)}
+  .tog[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tog[aria-pressed=true]:hover{background:var(--accent-ink)}
+  .tog[disabled]{opacity:.45;cursor:not-allowed}
+  .switch{position:relative;width:60px;height:28px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:#c2cbd4;border-radius:28px;transition:.2s;cursor:pointer}
+  .slider:before{content:"";position:absolute;height:22px;width:22px;left:3px;top:3px;
+    background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider:before{transform:translateX(32px)}
+  .switch .yn{position:absolute;top:6px;font-size:10px;font-weight:600;color:#fff}
+  .switch .yn.y{left:9px;opacity:0} .switch .yn.n{right:9px;opacity:1}
+  .switch input:checked + .slider .y{opacity:1} .switch input:checked + .slider .n{opacity:0}
+  .sectiontitle{font-size:.78rem;font-weight:600;margin:4px 0 8px;color:var(--ink)}
+  .culture-q{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--accent-wash);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:6px}
+  .culture-q b{font-size:.9rem}
+  .organisms{margin-top:12px;border:1px dashed var(--line);border-radius:8px;padding:12px;background:var(--surface)}
+  .organisms h4{margin:0 0 8px;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+  .warn{color:var(--danger);font-weight:600;font-size:12.5px;margin-top:6px}
+  .info p{font-size:.9rem;color:var(--ink)} .info a{color:var(--accent);text-decoration:none}
+  .info a:hover{text-decoration:underline}
+  .art{font-size:.82rem;border-top:1px solid var(--line);padding:9px 0}
+  .art a{font-weight:600;color:var(--ink);text-decoration:none} .art a:hover{text-decoration:underline}
+  .art .meta{color:var(--muted);font-size:.7rem}
+  .loading{font-size:12px;color:var(--muted);text-align:center;padding:8px}
+  footer{max-width:1180px;margin:0 auto;padding:8px 16px 40px;color:var(--muted);font-size:.7rem}
+
+  #resultPlaceholder{text-align:center;padding:20px 8px 8px}
+  #resultPlaceholder .ph-icon{color:#aeb9c4;line-height:1}
+  #resultPlaceholder .ph-msg{font-family:var(--serif);font-size:16px;color:var(--ink);margin:10px 0 6px}
+  #resultPlaceholder .ph-missing{font-size:11.5px;color:var(--muted);line-height:1.55;margin:0}
+  .results.incomplete .gaugewrap,
+  .results.incomplete .verdict,
+  .results.incomplete .me-toggle,
+  .results.incomplete .chartbox{display:none}
+  .results:not(.incomplete) #resultPlaceholder{display:none}
+  .warn.confirm{color:var(--warn);font-weight:600}
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <div class="wordmark">
+      <img src="https://static.wixstatic.com/media/0540e9_3a7da5248a3746ea9c308f860dc86574~mv2.png/v1/fill/w_264,h_124,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/icmphillylogov5transparent_edited.png" alt="ICM logo" onerror="this.style.display='none'"/>
+      <div class="titles">
+        <span class="name">DAIR Success Calculator</span>
+        <span class="tag">Probability of success after debridement &amp; implant retention</span>
+      </div>
+    </div>
+    <div class="corpus-note">Validated random-forest model · Bone Joint J 2020</div>
+  </header>
+  <div class="disclaimer">Educational decision support, not a substitute for clinical judgment. Reproduces the published model (Shohat et&nbsp;al., <i>Bone Joint J</i> 2020); verify against institutional guidance before use in care.</div>
+
+  <div class="wrap">
+    <!-- ============ INPUTS ============ -->
+    <div class="panels">
+
+      <details class="acc" open>
+        <summary>Patient Demographics <span class="chev">▶</span></summary>
+        <div class="body">
+          <div class="grid2">
+            <div>
+              <label class="fld" for="Age">Patient Age (years)</label>
+              <input type="number" id="Age" min="0" max="100" step="1" placeholder="Required">
+            </div>
+            <div>
+              <label class="fld">Patient Gender</label>
+              <div class="seg" data-seg="Male" data-default="1">
+                <button data-v="1">Male</button><button data-v="0">Female</button>
+              </div>
+            </div>
+            <div>
+              <label class="fld" for="BMI">Body Mass Index (kg/m²)</label>
+              <input type="number" id="BMI" min="10" max="100" step="0.1" placeholder="Required">
+            </div>
+            <div>
+              <div class="sectiontitle">Social Factors</div>
+              <div class="toggles">
+                <button class="tog" data-tog="Smoking">Current Smoker</button>
+                <button class="tog" data-tog="Alcohol">Current Alcohol Use</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="acc">
+        <summary>Patient Comorbidities <span class="chev">▶</span></summary>
+        <div class="body">
+          <div class="toggles" style="grid-template-columns:1fr 1fr">
+            <button class="tog" data-tog="COPD">Chronic Obstructive Pulmonary Disease</button>
+            <button class="tog" data-tog="LC">Liver Cirrhosis</button>
+            <button class="tog" data-tog="Immunesuppresion">Immunocompromised</button>
+            <button class="tog" data-tog="malignancy">Cancer</button>
+            <button class="tog" data-tog="Pacemaker_ICD">Pacemaker or ICD Implanted</button>
+            <button class="tog" data-tog="Hypertension">Hypertension</button>
+            <button class="tog" data-tog="oral_anticoagulant">Taking Oral Anticoagulant</button>
+            <button class="tog" data-tog="IHD">Hemodialysis</button>
+            <button class="tog" data-tog="RA">Rheumatoid Arthritis</button>
+            <button class="tog" data-tog="Dementia">Dementia</button>
+            <button class="tog" data-tog="HF">Congestive Heart Failure</button>
+            <button class="tog" data-tog="DM">Diabetes Mellitus</button>
+            <button class="tog" data-tog="CRF">Chronic Kidney Disease</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="acc">
+        <summary>Procedure <span class="chev">▶</span></summary>
+        <div class="body">
+          <div class="grid3">
+            <div>
+              <label class="fld">Indication for Arthroplasty</label>
+              <div class="seg" data-seg="Indication_prosthesis" data-default="1">
+                <button data-v="1">Osteoarthritis</button><button data-v="2">Other</button>
+              </div>
+            </div>
+            <div>
+              <label class="fld">Joint</label>
+              <div class="seg" data-seg="Joint" data-default="1">
+                <button data-v="1">Hip</button><button data-v="2">Knee</button>
+              </div>
+            </div>
+            <div>
+              <label class="fld">Index Procedure</label>
+              <div class="seg" data-seg="index_revision" data-default="0">
+                <button data-v="0">Primary</button><button data-v="1">Revision</button>
+              </div>
+            </div>
+            <div>
+              <label class="fld">Cemented Components</label>
+              <div class="seg" data-seg="Cement" data-default="1">
+                <button data-v="1">Yes</button><button data-v="0">No</button>
+              </div>
+            </div>
+            <div>
+              <label class="fld">Late Infection</label>
+              <div class="seg" data-seg="late_infection" data-default="0">
+                <button data-v="1">Yes</button><button data-v="0">No</button>
+              </div>
+            </div>
+            <div></div>
+            <div>
+              <label class="fld" for="days_to_DAIR">Days from Index Procedure to DAIR</label>
+              <input type="number" id="days_to_DAIR" min="0" max="200" step="1" placeholder="Required">
+              <div class="warn confirm" id="daysDairConfirm" style="display:none">0 days entered — confirm same-day DAIR is intended.</div>
+            </div>
+            <div>
+              <label class="fld" for="Dayssymptoms">Days of Symptoms</label>
+              <input type="number" id="Dayssymptoms" min="0" max="90" step="1" placeholder="Required">
+              <div class="warn" id="symptomWarn" style="display:none">DAIR is not recommended beyond 90 days from onset of symptoms</div>
+              <div class="warn confirm" id="symptomsZeroConfirm" style="display:none">0 days entered — confirm intended.</div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="acc">
+        <summary>Complications <span class="chev">▶</span></summary>
+        <div class="body">
+          <div class="toggles" style="grid-template-columns:repeat(3,1fr)">
+            <button class="tog" data-tog="Wound_leakage">Wound Leakage</button>
+            <button class="tog" data-tog="Fistula">Fistula Present</button>
+            <button class="tog" data-tog="Skin_infection">Overlying Skin Infection</button>
+            <button class="tog" data-tog="Necrosis">Necrosis</button>
+            <button class="tog" data-tog="Fever38">Fever</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="acc">
+        <summary>Laboratory &amp; Culture Results <span class="chev">▶</span></summary>
+        <div class="body">
+          <div class="grid3">
+            <div>
+              <label class="fld" for="Last_CRP">Last C-Reactive Protein (mg/L)</label>
+              <input type="number" id="Last_CRP" min="0" max="100" step="0.1" placeholder="Required">
+            </div>
+            <div>
+              <label class="fld" for="Last_leucocytes">Last Leucocyte Count (1,000/mL)</label>
+              <input type="number" id="Last_leucocytes" min="0" max="100" step="0.1" placeholder="Required">
+            </div>
+            <div>
+              <label class="fld">Positive Blood Cultures</label>
+              <div class="toggles" style="grid-template-columns:1fr">
+                <button class="tog" data-tog="Positive_bloodcultures">Positive Blood Cultures</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="culture-q">
+            <b>Were Cultures Obtained?</b>
+            <div class="seg" data-seg="Culture" data-default="0">
+              <button data-v="1">Yes</button><button data-v="0">No</button>
+            </div>
+          </div>
+
+          <div class="organisms" id="organisms" style="display:none">
+            <h4>Organism (select all that apply)</h4>
+            <div class="toggles" style="grid-template-columns:1fr">
+              <button class="tog" data-tog="CultureNeg" data-local="1">Culture Negative</button>
+            </div>
+            <div class="toggles" style="grid-template-columns:repeat(3,1fr); margin-top:8px">
+              <button class="tog" data-tog="STAU">Methicillin-sensitive S. aureus</button>
+              <button class="tog" data-tog="gramnegative">Gram-negative</button>
+              <button class="tog" data-tog="Polymicrob">Polymicrobial</button>
+              <button class="tog" data-tog="MRSA">Methicillin-resistant S. aureus</button>
+              <button class="tog" data-tog="Enterococcus_spp">Enterococcus</button>
+              <button class="tog" data-tog="Proteus_spp">Proteus</button>
+              <button class="tog" data-tog="Staphepi">Staphylococcus epidermidis</button>
+              <button class="tog" data-tog="Enterobacter_spp">Enterobacter</button>
+              <button class="tog" data-tog="Escherichia_coli">E. coli</button>
+              <button class="tog" data-tog="Pseudomonas_aerugi0sa">Pseudomonas aeruginosa</button>
+              <button class="tog" data-tog="Streptococci_spp">Streptococcus</button>
+              <button class="tog" data-tog="Candida_spp">Candida</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="acc info">
+        <summary>Information &amp; Links <span class="chev">▶</span></summary>
+        <div class="body info">
+          <p>Based on the validated model in: Shohat N, Goswami K, Tan&nbsp;TL, Yayac&nbsp;M, Soriano&nbsp;A,
+             Sousa&nbsp;R, Wouthuyzen-Bakker&nbsp;M, Parvizi&nbsp;J. <a href="https://doi.org/10.1302/0301-620X.102B7.BJJ-2019-1628.R1" target="_blank" rel="noopener"><i>Who Will Fail Following Irrigation and
+             Debridement for Periprosthetic Joint Infection?</i></a> Bone Joint J. 2020 (Hip Society Proceedings),
+             on behalf of ESGIAI &amp; NINJA.</p>
+          <p><a href="Hip-and-Knee_ICM.pdf" target="_blank" rel="noopener">2nd International Consensus Meeting — Hip &amp; Knee Section on DAIR (PDF)</a></p>
+          <div id="articles">
+            <p style="margin:10px 0 2px"><b>Recently Published Articles on DAIR</b></p>
+            <div class="loading" id="artLoading">Loading recent PubMed articles…</div>
+          </div>
+          <p style="color:#9aa0a6;font-size:11px;margin-top:14px">Original calculator by Michael Yayac &amp; Kristen Nicholson · © 2020 International Consensus Group LLC.
+             Static port runs the same model entirely in your browser.</p>
+        </div>
+      </details>
+    </div>
+
+    <!-- ============ RESULTS ============ -->
+    <aside class="results incomplete" id="resultsCard">
+      <h2>Probability of Treatment Success</h2>
+      <div id="resultPlaceholder">
+        <div class="ph-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div>
+        <p class="ph-msg">Enter patient details to calculate</p>
+        <p class="ph-missing" id="phMissing"></p>
+      </div>
+      <div class="gaugewrap">
+        <svg id="gauge" viewBox="0 0 240 150" width="240" height="150" aria-label="success gauge"></svg>
+      </div>
+
+      <div class="me-toggle">
+        <div class="me-row">
+          <span>Modular Component Exchange</span>
+          <label class="switch">
+            <input type="checkbox" id="Mobilexchange">
+            <span class="slider"><span class="yn y">Yes</span><span class="yn n">No</span></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="chartbox">
+        <h3>Why this estimate? <span class="shap-tag">SHAP</span></h3>
+        <div class="refstrip" id="refstrip"></div>
+        <div id="chart"><div class="loading">Loading model…</div></div>
+        <div class="shap-legend">
+          <span><i style="background:var(--green)"></i>raises success</span>
+          <span><i style="background:var(--red)"></i>lowers success</span>
+        </div>
+        <p class="note">Exact Shapley contributions of each factor, relative to a low-risk
+           reference patient. Bars sum to the gap between the reference and this patient.</p>
+      </div>
+    </aside>
+  </div>
+
+
+<script>
+"use strict";
+/* ------------------------------------------------------------------ *
+ *  DAIR calculator — in-browser random-forest inference
+ *  Models exported from the original randomForest objects (DAIR.rds,
+ *  DAIR2.rds). prob_success = (#trees voting class '1') / ntree.
+ * ------------------------------------------------------------------ */
+
+const NUMERIC = new Set(["Age","BMI","days_to_DAIR","Last_CRP","Last_leucocytes","Dayssymptoms"]);
+
+// display labels + (for the marginal chart) reference / flip behavior
+const LABELS = {
+  late_infection:"Late Infection", Male:"Gender", Age:"Age", BMI:"BMI", Smoking:"Smoking",
+  Alcohol:"Alcohol Use", Dementia:"Dementia", Hypertension:"Hypertension", IHD:"Dialysis",
+  HF:"Heart Failure", oral_anticoagulant:"Anticoagulation", DM:"Diabetes", COPD:"COPD",
+  CRF:"Chronic Kidney Disease", LC:"Liver Cirrhosis", Immunesuppresion:"Immunocompromised",
+  malignancy:"Cancer", RA:"Rheumatoid Arthritis", Pacemaker_ICD:"Pacemaker/ICD",
+  days_to_DAIR:"Days to DAIR", Indication_prosthesis:"Indication", index_revision:"Index Procedure",
+  Cement:"Cemented Components", Joint:"Joint", Wound_leakage:"Wound Leakage", Necrosis:"Necrosis",
+  Fistula:"Fistula", Last_CRP:"CRP Level", Last_leucocytes:"Leucocyte Count", Fever38:"Fever",
+  Positive_bloodcultures:"Blood Cultures", Skin_infection:"Skin Infection",
+  Mobilexchange:"Modular Component Exchange", Polymicrob:"Polymicrobial", STAU:"S. aureus",
+  MRSA:"MRSA", Staphepi:"S. epidermidis", gramnegative:"Gram-negative", Escherichia_coli:"E. coli",
+  Enterobacter_spp:"Enterobacter", Pseudomonas_aerugi0sa:"P. aeruginosa", Proteus_spp:"Proteus",
+  Enterococcus_spp:"Enterococcus", Streptococci_spp:"Streptococcus", Candida_spp:"Candida",
+  Dayssymptoms:"Days of Symptoms"
+};
+// numeric reference values defining the low-risk REFERENCE patient
+const NUM_REF = { Age:75, BMI:26.5, days_to_DAIR:0, Last_CRP:1.8, Last_leucocytes:12.9, Dayssymptoms:0 };
+
+// The reference patient SHAP explains against: low-risk, all factors absent.
+const BASELINE = {
+  Age:"75", BMI:"26.5", Male:"1", Smoking:"0", Alcohol:"0",
+  COPD:"0", Immunesuppresion:"0", Pacemaker_ICD:"0", oral_anticoagulant:"0", RA:"0", HF:"0",
+  CRF:"0", LC:"0", malignancy:"0", Hypertension:"0", IHD:"0", Dementia:"0", DM:"0",
+  Indication_prosthesis:"1", Joint:"1", index_revision:"0", Cement:"1", late_infection:"0",
+  days_to_DAIR:"0", Dayssymptoms:"0",
+  Wound_leakage:"0", Necrosis:"0", Fistula:"0", Fever38:"0", Skin_infection:"0",
+  Last_CRP:"1.8", Last_leucocytes:"12.9", Positive_bloodcultures:"0",
+  Mobilexchange:"0", Polymicrob:"0", STAU:"0", MRSA:"0", Staphepi:"0", gramnegative:"0",
+  Escherichia_coli:"0", Enterobacter_spp:"0", Pseudomonas_aerugi0sa:"0", Proteus_spp:"0",
+  Enterococcus_spp:"0", Streptococci_spp:"0", Candida_spp:"0"
+};
+
+// ---------- exact interventional TreeSHAP (single baseline) ----------
+function binomTable(M){const C=[];for(let n=0;n<=M;n++){C[n]=new Float64Array(n+1);C[n][0]=1;
+  for(let k=1;k<=n;k++)C[n][k]=(C[n-1][k-1]||0)+(C[n-1][k]||0);}return C;}
+function coeffTables(M){const C=binomTable(M);const g=s=>1/(M*C[M-1][s]);const Sp=[],Sm=[];
+  for(let a=0;a<=M;a++){Sp[a]=new Float64Array(M+1);Sm[a]=new Float64Array(M+1);
+    for(let b=0;b<=M-a;b++){const f=M-a-b;let sp=0,sm=0;
+      for(let t=0;t<=f;t++){const cc=C[f][t];const i1=a-1+t,i2=a+t;
+        if(i1>=0&&i1<M)sp+=cc*g(i1); if(i2>=0&&i2<M)sm+=cc*g(i2);}
+      Sp[a][b]=sp;Sm[a][b]=sm;}}
+  return {Sp,Sm};}
+function shapValues(M,model,x,codes,xb,codesb,Sp,Sm){
+  const {ntree,treeStart,left,right,varr,pred,split,ncat}=model;
+  const phi=new Float64Array(M); const inS=new Int32Array(M),outS=new Int32Array(M);
+  let inN=0,outN=0,base=0; const req=new Int8Array(M);
+  function rec(k){
+    const L=left[k];
+    if(L===0){ if(pred[k]===2){const sp=Sp[inN][outN],sm=Sm[inN][outN];
+        if(sp||sm){for(let q=0;q<inN;q++)phi[inS[q]]+=sp; for(let q=0;q<outN;q++)phi[outS[q]]-=sm;}}
+      return; }
+    const v=varr[k]-1; let xl,bl;
+    if(ncat[v]===1){xl=x[v]<=split[k]; bl=xb[v]<=split[k];}
+    else {xl=codes[v]===1; bl=codesb[v]===1;}
+    const La=base+L-1, Ra=base+right[k]-1;
+    for(let c=0;c<2;c++){
+      const cl=c===0; const xg=cl?xl:!xl, bg=cl?bl:!bl, nxt=cl?La:Ra;
+      if(!xg&&!bg) continue;
+      const need = (xg&&bg)?0:((xg&&!bg)?1:2);
+      if(need===0){ rec(nxt); continue; }
+      const prev=req[v];
+      if(prev===0){ req[v]=need; if(need===1)inS[inN++]=v; else outS[outN++]=v;
+        rec(nxt); req[v]=0; if(need===1)inN--; else outN--; }
+      else if(prev===need){ rec(nxt); }
+    }
+  }
+  for(let t=0;t<ntree;t++){ base=treeStart[t]; rec(base); }
+  for(let i=0;i<M;i++) phi[i]/=ntree;
+  return phi;
+}
+
+// ---- current UI state (string values, matching the Shiny inputs) ----
+const state = {
+  Age:"", BMI:"", Male:"", Smoking:"0", Alcohol:"0",
+  COPD:"0", Immunesuppresion:"0", Pacemaker_ICD:"0", oral_anticoagulant:"0", RA:"0", HF:"0",
+  CRF:"0", LC:"0", malignancy:"0", Hypertension:"0", IHD:"0", Dementia:"0", DM:"0",
+  Indication_prosthesis:"", Joint:"", index_revision:"", Cement:"", late_infection:"",
+  days_to_DAIR:"", Dayssymptoms:"",
+  Wound_leakage:"0", Necrosis:"0", Fistula:"0", Fever38:"0", Skin_infection:"0",
+  Last_CRP:"", Last_leucocytes:"", Positive_bloodcultures:"0",
+  Mobilexchange:"0", Culture:"", CultureNeg:"0",
+  Polymicrob:"0", STAU:"0", MRSA:"0", Staphepi:"0", gramnegative:"0", Escherichia_coli:"0",
+  Enterobacter_spp:"0", Pseudomonas_aerugi0sa:"0", Proteus_spp:"0", Enterococcus_spp:"0",
+  Streptococci_spp:"0", Candida_spp:"0"
+};
+const ORGANISMS = ["STAU","MRSA","Staphepi","Pseudomonas_aerugi0sa","gramnegative",
+  "Enterococcus_spp","Enterobacter_spp","Streptococci_spp","Polymicrob","Proteus_spp",
+  "Escherichia_coli","Candida_spp"];
+
+let META=null, MODELS={};   // key -> parsed model
+
+// ---------- binary model parser ----------
+function parseModel(buf, ncat){
+  const dv = new DataView(buf);
+  const ntree = dv.getInt32(0,true);
+  const total = dv.getInt32(4,true);
+  let o = 8;
+  const split = new Float64Array(buf, o, total);            o += 8*total;
+  const treeStart = new Int32Array(buf, o, ntree+1);        o += 4*(ntree+1);
+  const left  = new Int16Array(buf, o, total);              o += 2*total;
+  const right = new Int16Array(buf, o, total);              o += 2*total;
+  const varr  = new Uint8Array(buf, o, total);              o += total;
+  const pred  = new Uint8Array(buf, o, total);              o += total;
+  return {ntree, total, split, treeStart, left, right, varr, pred,
+          ncat:Int16Array.from(ncat)};
+}
+
+// ---------- score one input vector (x numeric, codes 1-indexed factor codes) ----------
+function scoreModel(M, x, codes){
+  const {ntree, treeStart, left, right, varr, pred, split, ncat} = M;
+  let succ = 0;
+  for(let t=0;t<ntree;t++){
+    const base = treeStart[t];
+    let k = base;
+    for(;;){
+      const L = left[k];
+      if(L===0){ if(pred[k]===2) succ++; break; }
+      const v = varr[k];
+      let goLeft;
+      if(ncat[v-1]===1) goLeft = x[v-1] <= split[k];
+      else              goLeft = codes[v-1]===1;
+      k = base + (goLeft ? L : right[k]) - 1;
+    }
+  }
+  return succ/ntree;
+}
+
+// build x + codes arrays for a model from a state object
+function encode(model, st){
+  const names = model.names, n = names.length;
+  const x = new Float64Array(n), codes = new Int16Array(n);
+  for(let i=0;i<n;i++){
+    const nm = names[i], val = st[nm];
+    if(NUMERIC.has(nm)){ x[i] = parseFloat(val)||0; codes[i]=0; }
+    else { const c = model.levels[nm].indexOf(String(val))+1; codes[i]=c; x[i]=c; }
+  }
+  return {x, codes};
+}
+
+function activeKey(){ return state.Culture==="1" ? "model_culture" : "model_nculture"; }
+
+// ---------- required-field gate (clinical: no calc until the vector is real) ----------
+const REQ_NUM = ["Age","BMI","Last_CRP","Last_leucocytes","days_to_DAIR","Dayssymptoms"];
+const REQ_SEG = ["Male","Joint","Indication_prosthesis","index_revision","Cement","late_infection","Culture"];
+const REQ_NAME = {Age:"Age", BMI:"BMI", Last_CRP:"CRP", Last_leucocytes:"Leucocytes",
+  days_to_DAIR:"Days to DAIR", Dayssymptoms:"Days of symptoms", Male:"Gender", Joint:"Joint",
+  Indication_prosthesis:"Indication", index_revision:"Index procedure", Cement:"Cemented",
+  late_infection:"Late infection", Culture:"Cultures obtained?"};
+function missingRequired(){
+  const miss=[];
+  for(const k of REQ_NUM){ const v=state[k]; if(v===""||v==null||isNaN(parseFloat(v))) miss.push(REQ_NAME[k]); }
+  for(const k of REQ_SEG){ if(!state[k]) miss.push(REQ_NAME[k]); }
+  return miss;
+}
+function gate(){
+  const miss = missingRequired();
+  const card = document.getElementById('resultsCard');
+  if(miss.length){
+    card.classList.add('incomplete');
+    document.getElementById('phMissing').textContent = "Still needed: " + miss.join(" · ");
+  } else {
+    card.classList.remove('incomplete');
+    recompute();
+  }
+}
+
+// ---------- recompute gauge + chart ----------
+let pending=false;
+function recompute(){
+  if(pending) return; pending=true;
+  requestAnimationFrame(()=>{
+    pending=false;
+    const key = activeKey();
+    const model = MODELS[key];
+    if(!model){ ensureModel(key).then(recompute); return; }
+    const meta = META.models[key];
+    model.names = meta.names; model.levels = meta.levels;
+
+    const {x, codes} = encode(model, state);
+    const base = scoreModel(model, x, codes);
+    drawGauge(base*100);
+
+    // exact SHAP explanation vs the low-risk reference patient
+    if(!model.shap) model.shap = coeffTables(model.names.length);
+    if(!model.baseEnc) model.baseEnc = encode(model, BASELINE);
+    const fb = scoreModel(model, model.baseEnc.x, model.baseEnc.codes);
+    const phi = shapValues(model.names.length, model, x, codes,
+                           model.baseEnc.x, model.baseEnc.codes, model.shap.Sp, model.shap.Sm);
+    const effects = [];
+    for(let i=0;i<model.names.length;i++){
+      if(Math.abs(phi[i]) > 5e-5) effects.push([model.names[i], phi[i]*100]);
+    }
+    effects.sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+    drawShap(effects.slice(0,10), fb*100, base*100);
+  });
+}
+
+// ---------- SVG gauge (180° arc, danger/warning/success zones) ----------
+function polar(cx,cy,r,deg){ const a=(deg-180)*Math.PI/180; return [cx+r*Math.cos(a), cy+r*Math.sin(a)]; }
+function arcPath(cx,cy,r,a0,a1){
+  const [x0,y0]=polar(cx,cy,r,a0), [x1,y1]=polar(cx,cy,r,a1);
+  const large = (a1-a0)>180?1:0;
+  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
+}
+function drawGauge(pct){
+  pct = Math.max(0, Math.min(100, pct));
+  const cx=120, cy=130, r=96, sw=20;
+  const zones = [[0,33,"var(--red)"],[33,67,"var(--amber)"],[67,100,"var(--green)"]];
+  let s = `<path d="${arcPath(cx,cy,r,0,180)}" stroke="var(--line)" stroke-width="${sw}" fill="none" stroke-linecap="round"/>`;
+  for(const [z0,z1,col] of zones){
+    s += `<path d="${arcPath(cx,cy,r, z0/100*180, z1/100*180)}" stroke="${col}" stroke-width="${sw}" fill="none"/>`;
+  }
+  // needle
+  const [nx,ny]=polar(cx,cy,r-2,pct/100*180);
+  s += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="var(--ink)" stroke-width="3"/>`;
+  s += `<circle cx="${cx}" cy="${cy}" r="6" fill="var(--ink)"/>`;
+  s += `<text class="gnum" x="${cx}" y="${cy-18}">${pct.toFixed(0)}%</text>`;
+  document.getElementById('gauge').innerHTML = s;
+}
+
+// ---------- SHAP diverging-bar chart ----------
+function drawShap(effects, fbPct, fxPct){
+  const ref = document.getElementById('refstrip');
+  ref.innerHTML = `<span>Reference<br><b>${fbPct.toFixed(0)}%</b></span>
+    <span class="arrow"></span>
+    <span style="text-align:right">This patient<br><b>${fxPct.toFixed(0)}%</b></span>`;
+  const box = document.getElementById('chart');
+  if(!effects.length){ box.innerHTML = '<div class="loading">This patient matches the reference — no factors to attribute.</div>'; return; }
+  const max = Math.max(...effects.map(e=>Math.abs(e[1])));
+  box.innerHTML = effects.map(([nm,val])=>{
+    const half = Math.min(50, Math.abs(val)/max*50);   // % of half-track
+    const pos = val>=0;
+    const col = pos ? 'var(--green)' : 'var(--red)';
+    const style = pos ? `left:50%;width:${half}%` : `left:${50-half}%;width:${half}%`;
+    const lab = (LABELS[nm]||nm);
+    return `<div class="sh-row">
+      <div class="sh-lab">${lab}</div>
+      <div class="sh-track"><div class="sh-axis"></div>
+        <div class="sh-fill" style="${style};background:${col}"></div></div>
+      <div class="sh-val" style="color:${col};text-align:${pos?'left':'right'}">${pos?'+':'−'}${Math.abs(val).toFixed(1)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- lazy model loader ----------
+async function ensureModel(key){
+  if(MODELS[key]) return MODELS[key];
+  const buf = await fetch(key + ".bin").then(r=>{ if(!r.ok) throw new Error("fetch "+key); return r.arrayBuffer(); });
+  MODELS[key] = parseModel(buf, META.models[key].ncat);
+  MODELS[key].names = META.models[key].names;
+  MODELS[key].levels = META.models[key].levels;
+  return MODELS[key];
+}
+
+// =================== UI wiring ===================
+function wire(){
+  // segmented controls — required, start with no selection
+  document.querySelectorAll('[data-seg]').forEach(seg=>{
+    const name = seg.dataset.seg;
+    const set = v=>{
+      seg.querySelectorAll('button').forEach(b=> b.setAttribute('aria-pressed', b.dataset.v===v));
+      state[name]=v;
+      if(name==="Culture") onCultureChange(v); else gate();
+    };
+    seg.querySelectorAll('button').forEach(b=> b.onclick=()=>set(b.dataset.v));
+  });
+  // toggles
+  document.querySelectorAll('[data-tog]').forEach(btn=>{
+    const name = btn.dataset.tog;
+    btn.onclick=()=>{
+      const on = btn.getAttribute('aria-pressed')!=='true';
+      btn.setAttribute('aria-pressed', on);
+      if(btn.dataset.local){ handleLocal(name, on); }   // CultureNeg
+      else { state[name] = on?"1":"0"; gate(); }
+    };
+    btn.setAttribute('aria-pressed','false');
+  });
+  // numeric inputs — required, start empty
+  ["Age","BMI","days_to_DAIR","Dayssymptoms","Last_CRP","Last_leucocytes"].forEach(id=>{
+    const el = document.getElementById(id);
+    el.addEventListener('input', ()=>{
+      if(id==="Dayssymptoms"){
+        let v = parseFloat(el.value); if(v>90){ el.value=90; }
+        document.getElementById('symptomWarn').style.display = (parseFloat(el.value)>=90)?'block':'none';
+      }
+      state[id] = el.value;                       // keep "" when empty
+      const isZero = el.value!=="" && parseFloat(el.value)===0;
+      if(id==="days_to_DAIR") document.getElementById('daysDairConfirm').style.display = isZero?'block':'none';
+      if(id==="Dayssymptoms") document.getElementById('symptomsZeroConfirm').style.display = isZero?'block':'none';
+      gate();
+    });
+  });
+  // modular exchange switch
+  const mob = document.getElementById('Mobilexchange');
+  mob.addEventListener('change', ()=>{ state.Mobilexchange = mob.checked?"1":"0"; gate(); });
+}
+
+function onCultureChange(v){
+  document.getElementById('organisms').style.display = (v==="1")?'block':'none';
+  if(v==="1"){ ensureModel("model_culture").then(gate); }
+  else { gate(); }
+}
+
+// Culture Negative clears + disables the specific organisms (mirrors original)
+function handleLocal(name, on){
+  if(name==="CultureNeg"){
+    state.CultureNeg = on?"1":"0";
+    ORGANISMS.forEach(o=>{
+      if(o==="gramnegative") return; // original left gram-negative enabled
+      const btn = document.querySelector(`[data-tog="${o}"]`);
+      if(!btn) return;
+      if(on){ btn.setAttribute('aria-pressed','false'); state[o]="0"; btn.setAttribute('disabled',''); }
+      else  { btn.removeAttribute('disabled'); }
+    });
+    gate();
+  }
+}
+
+// ---------- recent PubMed articles (client-side, graceful) ----------
+async function loadArticles(){
+  const box = document.getElementById('articles');
+  const load = document.getElementById('artLoading');
+  try{
+    const term = "debridement+antibiotic+implant+retention";
+    const es = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&sort=date&retmax=5&retmode=json`).then(r=>r.json());
+    const ids = (es.esearchresult&&es.esearchresult.idlist)||[];
+    if(!ids.length) throw new Error("none");
+    const sum = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${ids.join(",")}&retmode=json`).then(r=>r.json());
+    load.remove();
+    ids.forEach(id=>{
+      const a = sum.result[id]; if(!a) return;
+      const auth = (a.authors&&a.authors[0]?a.authors[0].name+" et al.":"");
+      const div = document.createElement('div'); div.className='art';
+      div.innerHTML = `<a href="https://pubmed.ncbi.nlm.nih.gov/${id}" target="_blank" rel="noopener">${a.title||"(untitled)"}</a>
+        <div class="meta">${auth} · ${a.fulljournalname||a.source||""} · ${a.pubdate||""}</div>`;
+      box.appendChild(div);
+    });
+  }catch(e){
+    load.innerHTML = `Couldn't reach PubMed right now — <a href="https://pubmed.ncbi.nlm.nih.gov/?term=debridement+antibiotic+implant+retention&sort=date" target="_blank" rel="noopener">browse recent articles on PubMed</a>.`;
+  }
+}
+
+// =================== boot ===================
+(async function(){
+  wire();
+  META = await fetch("models.json").then(r=>r.json());
+  await ensureModel("model_nculture");
+  gate();
+  loadArticles();
+})();
+</script>
+</body>
+</html>
